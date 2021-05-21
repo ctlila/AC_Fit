@@ -1,15 +1,26 @@
 # AC_Fit
 Software to fit AC magnetic susceptibility measurements
 
+--------------------------------------------------------------------------------------------
+!!! OPTIMIZATION TOOLBOX NEEDED !!!
+you can download it in matlab ->Home ->Add-Ons ->search for Optimization toolbox ->Install
+--------------------------------------------------------------------------------------------
+
 
 Open .m file in matlab and either run directly (default settings) or change parameters of optional features.
 
 The default values of all prompted variables are set as : 
+
     MW = 838808 (mg/mol)
+    
     mass = 11.3 (mg) for sample
+    
     mass_teflon = 7 (mg)
+    
     nb_points = 21
-    first_row = 1
+    
+    first_row = 1      #This is the row index of your first point. Generally 1.
+    
     smallest_step_T =  0.5 (K)
     smallest_step_H =  100 (Oe)
 
