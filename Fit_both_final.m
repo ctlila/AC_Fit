@@ -13,6 +13,8 @@ format longG
 
 state = rng ; 
 
+%%
+
 %%%%%%% OPTIONAL FEATURES %%%%%%
 
 w = 0.8 ; % weight of chi2 compared to chi1 in the fitting process.
@@ -121,7 +123,7 @@ end
 %importing data
 Rawdata = readmatrix(rawfile); 
 
-
+%%
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%      MAIN      %%%%%%%%%
@@ -146,6 +148,11 @@ std_devstock= Rawdata(:,8);
 %specifications of your data file
 nbrow = size(Rawdata);
 nbfit = (nbrow(1)-(frst-1))/nbpt;
+
+if ~(floor(nbfit)==nbfit)
+    disp('Wrong entry. Please ensure your .dat file is clean (no additionnal row) and all acquisitions have the same length.')
+    return 
+end
 
 %options for the optimization algorithm
 optionsnonlin = optimoptions('lsqnonlin','MaxFunctionEvaluations',1.2e+05,'MaxIterations',4e4,'FunctionTolerance',1e-10,'StepTolerance',1e-10,'OptimalityTolerance',1e-8,'UseParallel',false);
@@ -823,7 +830,7 @@ if contains(plot_option,'single')
     if contains(savefile,'Yes') && ~only_one
         set(figchipr, 'units','normalized','outerposition',[0 0 1 1])
         set(figchisec,'units','normalized','outerposition',[0 0 1 1])
-        status = mkdir(filename) ;
+        status = mkdir(strcat(filepath,'\',filename)) ;
         exportgraphics(axchipr,strcat(filepath,'/',filename,'/',filename,'_chiprime.png'));
         exportgraphics(axchisec,strcat(filepath,'/',filename,'/',filename,'_chisecond.png'));
         params = fitparamstock;
@@ -835,7 +842,7 @@ if contains(plot_option,'single')
     elseif contains(savefile,'Yes') && only_one
         set(figchipr, 'units','normalized','outerposition',[0 0 1 1])
         set(figchisec,'units','normalized','outerposition',[0 0 1 1])
-        status = mkdir(filename) ;
+        status = mkdir(strcat(filepath,'\',filename)) ;
         params = fitparamstock;
         params = params(any(params~=0,2), : );
         table = array2table(params,'VariableNames',Column_names) ;
@@ -860,7 +867,7 @@ if contains(plot_option,'separated')
     savefile = questdlg("Do you want to save these fits ?");
 
     if contains(savefile,'Yes')
-        status = mkdir(filename) ;
+        status = mkdir(strcat(filepath,'\',filename)) ;
         params = fitparamstock;
         params = params(any(params~=0,2), : );
         table = array2table(params,'VariableNames',Column_names) ;
@@ -877,5 +884,7 @@ if contains(plot_option,'separated')
 end
 
 
+
+%%
 
 %%%% Thank you Ilyes for your precious help %%%%
