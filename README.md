@@ -2,8 +2,8 @@
 Software to fit AC magnetic susceptibility measurements
 
 --------------------------------------------------------------------------------------------
-!!! MATLAB'S OPTIMIZATION TOOLBOX NEEDED !!!
-you can download it in matlab -> Home -> Add-Ons -> search for Optimization toolbox -> Install
+!!! MATLAB'S OPTIMIZATION AND STATISTICS TOOLBOX NEEDED !!!
+you can download it in matlab -> Home -> Add-Ons -> search for 'Optimization toolbox' and 'Statistics and Machine Learning Toolbox' -> Install
 --------------------------------------------------------------------------------------------
 
 
