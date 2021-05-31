@@ -11,7 +11,7 @@ Open .m file in matlab and either run directly (default settings) or change para
 
 The default values of all prompted variables are set as : 
 
-    MW = 838808 (mg/mol)
+    MW = 838.808 (g/mol)
     
     mass = 11.3 (mg) for sample
     
