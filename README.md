@@ -42,7 +42,7 @@ FSS2_60D_ScanH20K.xlsx
 Consequently you may press enter for each prompted field if using one of these file.
 
 
-Please report any error/bug.
+Please report any error/bug and feel free to share and modify.
 
 
 Enjoy !
