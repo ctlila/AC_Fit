@@ -28,7 +28,7 @@ plot_option = 'single' ; %options : 'single' / 'separated'
 
 %Do you want to plot and fit all the data of your file (false) or only one (true) ? 
 only_one = false ;
-which = 26 ; %if only one, which one ? (row index)
+which = 5 ; %if only one, which one ? (row index)
 
 
 %Initial parameters of the fits + typical patterns of AC curves. You may modify/add patterns 
@@ -71,7 +71,7 @@ if contains(instr ,'ppms')
 elseif contains(instr,'squid')
     rawfile=input("Name (and path) of your raw data file from SQUID",'s');
     if isempty(rawfile)
-        rawfile = 'KV788_Lurad_acscanH.ac.dat';
+        rawfile = 'C:\Users\Lila\Documents\STAGE\MESURES\KV788_Lurad_acscanH.ac.dat';
     end
 end
 
@@ -83,18 +83,18 @@ end
 %Molecular weight of your compound and mass of the sample !!!ALL IN mg!!!
 MW=input('Molecular Weight of your compound in g/mol');
 if isempty(MW)
-     MW = 838.81; %enter here a default value for the molecular weight.
+     MW = 838.808; %enter here a default value for the molecular weight.
 end 
 
 
 mass=input('Mass of the sample in mg');
 if isempty(mass)
-     mass = 10.2; %=default value for sample mass.
+     mass = 11.3; %=default value for sample mass.
 end 
 
-mteflon=input('Mass of teflon in mg');
+mteflon=input('Mass of teflon');
 if isempty(mteflon)
-     mteflon = 8.17; %default value for teflon mass.
+     mteflon = 7; %default value for teflon mass.
 end 
 
 %Number of points for each acquisition
@@ -117,19 +117,19 @@ end
 
 
 if contains(TorH,'T')
-    %The smallest difference of temperature between 2 acquisitions (for legends)
-    stepT=input('The smallest difference of temperature between 2 acquisitions (K)');
+    %The smallest difference of temperature between 2 acquisitions
+    stepT=input('The smallest difference of temperature between 2 acquisitions');
     if isempty(stepT)
-         stepT = 0.1; %default value for step in T
+         stepT = 0.5; %default value for step in T
     end 
     stepH=100;
 else
     %The smallest difference of temperature between 2 acquisitions
-    stepH=input('The smallest difference of magnetic field between 2 acquisitions (Oe)');
+    stepH=input('The smallest difference of magnetic field between 2 acquisitions');
     if isempty(stepH)
-         stepH = 100; %default value for step in field in Oersted
+         stepH = 100; %default value for step in field
     end 
-    stepT=0.1;
+    stepT=0.5;
 end
 
 
@@ -176,7 +176,7 @@ end
 
 %Calculation of chi' and chi" from M' and M" respectively.
 chisec = msec./amplitudes.*(MW*10^3/mass);
-chipr = ((mpr+(3.7*10^-10 .* mteflon .*amplitudes))./amplitudes).* MW.*10^3./mass + MW.*10^-6./2 ;
+chipr = ((mpr+(3.7*10^-10 * mteflon .*amplitudes))./amplitudes).* MW*10^3/mass + MW*10^-6/2 ;
 %Note that the diamagnetic contribution is only roughly calculated. You can modify this formula to have better accuracy. 
 
 %Get the standard deviations of each measure for weights
@@ -248,13 +248,13 @@ end
 
         Temps = temperatures((frst+(i-1)*nbpt):(frst-1+i*nbpt)); %temperature
         
-        Temp = mean(Temps);
+        Temp = Temps(1);
         
         rTemp = round(Temp/stepT)*stepT; %round temperature
 
         Fields = fields((frst+(i-1)*nbpt):(frst-1+i*nbpt)); %magnetic field   
         
-        Field = mean(Fields);
+        Field = Fields(1);
         
         rField = round(Field/stepH)*stepH ; %round field
 
@@ -796,11 +796,7 @@ end
 
         if choice(i,1) == 2
             lastparam2([1 3 5 7 9 11 13]) = fitparamstock(i,[1 3 5 7 9 11 13]) ;
-            if fitparamstock(i,1)>fitparamstock(i,9)
-                lastparam1([1 3 5 7])= fitparamstock(i,[1 3 5 7]);
-            else 
-                lastparam1([1 3 5 7])= fitparamstock(i,[9 11 13 7]);
-            end 
+            lastparam1([1 3 5 7])= fitparamstock(i,[1 3 5 7]);
         end   
 
 
@@ -875,9 +871,9 @@ if contains(plot_option,'single')
         out = outputfile ;
         out = out(any(out~=0,2),:);
         tableout = array2table(out,'VariableNames',Out_columns);        
-        writetable(tableout,strcat(filepath,'/',filename,'/',filename,'_Data.txt'),'Delimiter','\t') ;
-        writetable(table,strcat(filepath,'/',filename,'/',filename,'_Parameters.txt'),'Delimiter','\t') ;
-        disp(['The files were saved successfully in directory ',filepath,'\',filename,'\']);
+        writetable(tableout,strcat(filepath,'/',filename,'/',filename,'_Data.txt')) ;
+        writetable(table,strcat(filepath,'/',filename,'/',filename,'_Parameters.txt')) ;
+        disp(['The files were saved successfully in directory ',filepath,filename,'/']);
         
     elseif contains(savefile,'Yes') && only_one
         set(figchipr, 'units','normalized','outerposition',[0 0 1 1])
@@ -892,15 +888,15 @@ if contains(plot_option,'single')
         if contains(TorH,'T')
             exportgraphics(axchipr,strcat(filepath,'/',filename,'/',filename,'_chiprime',string(rTemp),'K.png'));
             exportgraphics(axchisec,strcat(filepath,'/',filename,'/',filename,'_chisecond',string(rTemp),'K.png'));
-            writetable(tableout,strcat(filepath,'/',filename,'/',filename,'_Data',string(rTemp),'K.txt'),'Delimiter','\t') ;
-            writetable(table,strcat(filepath,'/',filename,'/',filename,'_Parameters',string(rTemp),'K.txt'),'Delimiter','\t') ;
+            writetable(tableout,strcat(filepath,'/',filename,'/',filename,'_Data',string(rTemp),'K.txt')) ;
+            writetable(table,strcat(filepath,'/',filename,'/',filename,'_Parameters',string(rTemp),'K.txt')) ;
         elseif contains(TorH,'H')
             exportgraphics(axchipr,strcat(filepath,'/',filename,'/',filename,'_chiprime',string(rField),'Oe.png'));
             exportgraphics(axchisec,strcat(filepath,'/',filename,'/',filename,'_chisecond',string(rField),'Oe.png'));
-            writetable(tableout,strcat(filepath,'/',filename,'/',filename,'_Data',string(rField),'Oe.txt'),'Delimiter','\t') ;
-            writetable(table,strcat(filepath,'/',filename,'/',filename,'_Parameters',string(rField),'Oe.txt'),'Delimiter','\t') ;
+            writetable(tableout,strcat(filepath,'/',filename,'/',filename,'_Data',string(rField),'Oe.txt')) ;
+            writetable(table,strcat(filepath,'/',filename,'/',filename,'_Parameters',string(rField),'Oe.txt')) ;
         end
-        disp(['The files were saved successfully in directory ',filepath,'\',filename,'\']);
+        disp(['The files were saved successfully in directory ',filepath,filename,'/']);
     end
     
 
@@ -919,8 +915,8 @@ if contains(plot_option,'separated')
         out = outputfile ;
         out = out(any(out~=0,2),:);
         tableout = array2table(out,'VariableNames',Out_columns);        
-        writetable(tableout,strcat(filepath,'/',filename,'/',filename,'_Data.txt'),'Delimiter','\t') ;        
-        writetable(table,strcat(filepath,'/',filename,'/',filename,'_Parameters.txt'),'Delimiter','\t') ;
+        writetable(tableout,strcat(filepath,'/',filename,'/',filename,'_Data.txt')) ;        
+        writetable(table,strcat(filepath,'/',filename,'/',filename,'_Parameters.txt')) ;
         FigList = findobj('Type', 'figure');
         for iFig = 1:length(FigList)
           FigHandle = FigList(iFig);
@@ -928,7 +924,7 @@ if contains(plot_option,'separated')
           FigName   = get(FigHandle, 'Name');
           exportgraphics(FigHandle,strcat(filepath,'/',filename,'/',filename,'_',FigName,'.png'));       
         end
-        disp(['The files were saved successfully in directory ',filepath,'\',filename,'\']);
+        disp(['The files were saved successfully in directory ',filepath,filename,'/']);
     end
 end
 
