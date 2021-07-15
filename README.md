@@ -2,6 +2,7 @@
 Software to fit AC magnetic susceptibility measurements
 
 --------------------------------------------------------------------------------------------
+Matlab 2020a of later required.
 !!! MATLAB'S OPTIMIZATION AND STATISTICS TOOLBOX NEEDED !!!
 you can download it in matlab -> Home -> Add-Ons -> search for 'Optimization toolbox' and 'Statistics and Machine Learning Toolbox' -> Install
 --------------------------------------------------------------------------------------------
@@ -30,7 +31,7 @@ INPUT :
 .dat file of AC measurements from PPMS or from SQUID ; Molecular weight of the compound, mass of the sample, mass of teflon.
 
 OUTPUT : 
-2 .png files for chi' and chi" fitted curves, and 2 .txt files with the fit parameters (chiT-chiS, tau, alpha, chiS) and with chi' and chi". 
+2 .png files for chi' and chi" fitted curves, and 2 tab delimited .txt files with the fit parameters (chiT-chiS, tau, alpha, chiS) and with chi' and chi". 
 
 
 The default values are suited to correspond to the data files provided in the repository :
