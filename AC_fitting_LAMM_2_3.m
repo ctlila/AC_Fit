@@ -28,10 +28,11 @@ plot_option = 'single' ; %options : 'single' / 'separated'
 
 %Do you want to plot and fit all the data of your file (false) or only one (true) ? 
 only_one = false ;
-which = 26 ; %if only one, which one ? (row index)
+which = 11 ; %if only one, which one ? (row index)
 
 
 %Initial parameters of the fits + typical patterns of AC curves. You may modify/add patterns 
+
 %Generally no change in initial parameters or patterns is needed.
 
 %order : (chiT-chiS)_1 tau_1 alpha_1 chiS  (chiT-chiS)_2 tau_2 alpha_2
@@ -66,7 +67,7 @@ end
 if contains(instr ,'ppms')
     rawfile=input("Name (and path) of your raw data file from PPMS",'s');
     if isempty(rawfile)
-        rawfile = 'FSS2_60D_ScanH20K.xlsx';
+        rawfile = 'FSS2-65A2p1_ScanT_0.1T_test.dat';
     end
 elseif contains(instr,'squid')
     rawfile=input("Name (and path) of your raw data file from SQUID",'s');
@@ -77,7 +78,7 @@ end
 
 [filepath,filename,~] = fileparts(rawfile) ;
 if isempty(filepath)
-    filepath = './' ;
+    filepath = '.' ;
 end
 
 %Molecular weight of your compound and mass of the sample !!!ALL IN mg!!!
@@ -222,7 +223,7 @@ pointspr = gobjects(1,nbfit);                         %Storage for chi' graph
 legendtemp = cell(1,nbfit);                           %Storage for legends
 legendfield = cell(1,nbfit);
 jacobian = zeros(nbpt);                               %Storage for raw jacobians
-outputfile = zeros(nbfit*nbpt,5);
+outputfile = zeros(nbfit*nbpt,7);                     % x and y data of each curve and each fit + T + H
 
 if only_one 
     end_index = which+1 ;
@@ -257,13 +258,7 @@ end
         rField = round(Field/stepH)*stepH ; %round field
 
                 
-        %File with frequence, chi' chi", H and T 
-        
-        outputfile(((i-1)*nbpt+1:i*nbpt),1) = xdata;
-        outputfile(((i-1)*nbpt+1:i*nbpt),2) = ydatapr;
-        outputfile(((i-1)*nbpt+1:i*nbpt),3) = ydatasec;
-        outputfile(((i-1)*nbpt+1:i*nbpt),4) = Temps;        
-        outputfile(((i-1)*nbpt+1:i*nbpt),5) = Fields;
+
         
         
         %USER CHOICE ON 1 or 2 contributions (or ignore this acquisition).
@@ -731,8 +726,10 @@ end
                 pointssec(i) = semilogx(axchisec,xdata,ydatasec,'o','DisplayName', string(rField)+'Oe','color',newcolors(i,:));
                 hold(axchisec,'on')
         end
+        
+        yfitsec = fitchoicesec(fitparamstock(i,[1 3 5 7 9 11 13]),xdata);
 
-        curvesec = semilogx(axchisec,xdata,fitchoicesec(fitparamstock(i,[1 3 5 7 9 11 13]),xdata),'b-','color',newcolors(i,:));
+        curvesec = semilogx(axchisec,xdata,yfitsec,'b-','color',newcolors(i,:));
         %'DisplayName', 'fit '+ string(rTemp)+'K',
         hold(axchisec,'on')
         xtsec = xticks(axchisec) ;
@@ -762,8 +759,12 @@ end
                 hold(axchipr,'on')
                 legendfield{i} = string(rField)+' Oe';  
         end
+        
+        %creating a file with the x and y values of the fits
+        
+        yfitpr = fitchoicepr(fitparamstock(i,[1 3 5 7 9 11 13]),xdata);
 
-        curvepr = semilogx(axchipr,xdata,fitchoicepr(fitparamstock(i,[1 3 5 7 9 11 13]),xdata),'b-','color',newcolors(i,:));
+        curvepr = semilogx(axchipr,xdata,yfitpr,'b-','color',newcolors(i,:));
         hold(axchipr,'on')
         xtpr = xticks(axchipr) ;
         xticklabels(axchipr,num2cell(xtpr));
@@ -784,6 +785,17 @@ end
             legend(pointssec(i),string(rField)+' Oe','Location','Best'); 
         end
 
+        %File with frequence, chi'_data, chi'_fit , chi"_data, chi"_fit, H and T 
+        
+        outputfile(((i-1)*nbpt+1:i*nbpt),1) = xdata;
+        outputfile(((i-1)*nbpt+1:i*nbpt),2) = ydatapr;
+        outputfile(((i-1)*nbpt+1:i*nbpt),3) = yfitpr;
+        outputfile(((i-1)*nbpt+1:i*nbpt),4) = ydatasec;
+        outputfile(((i-1)*nbpt+1:i*nbpt),5) = yfitsec;
+        outputfile(((i-1)*nbpt+1:i*nbpt),6) = Temps;        
+        outputfile(((i-1)*nbpt+1:i*nbpt),7) = Fields;
+        
+        
         %Now save the selected parameters to serve as initial parameters in next iteration
 
         if choice(i,1)==1
@@ -831,7 +843,7 @@ end
 
 Column_names = {'d1','errd1','t1','errt1','a1','erra1','chiS1','errchiS1','d2','errd2','t2','errt2','a2','erra2','chiS2','errchiS2','T','1/T','H','ln(t1)','err(ln(t1))','ln(t2)','err(ln(t2))'} ;
 
-Out_columns = {'Frequence','Chi''','Chi''''','T','H'} ;
+Out_columns = {'Frequence','Chi''_data','Chi''_fit','Chi''''_data','Chi''''_fit','T','H'} ;
 
 if contains(plot_option,'single')
 
@@ -856,25 +868,26 @@ if contains(plot_option,'single')
         legend(prlegend,legendfield, 'NumColumns',2,'Location','Best');
     end
     
-    
-    savefile = questdlg("Do you want to save these fits ?");
-
-    
+    if only_one
+        savefile = questdlg("Do you want to save this fit ?");
+    else
+        savefile = questdlg("Do you want to save these fits ?");
+    end
     
     if contains(savefile,'Yes') && ~only_one
         set(figchipr, 'units','normalized','outerposition',[0 0 1 1])
         set(figchisec,'units','normalized','outerposition',[0 0 1 1])
         status = mkdir(strcat(filepath,'\',filename)) ;
-        exportgraphics(axchipr,strcat(filepath,'/',filename,'/',filename,'_chiprime.png'));
-        exportgraphics(axchisec,strcat(filepath,'/',filename,'/',filename,'_chisecond.png'));
+        exportgraphics(axchipr,strcat(filepath,'\',filename,'\',filename,'_chiprime.png'));
+        exportgraphics(axchisec,strcat(filepath,'\',filename,'\',filename,'_chisecond.png'));
         params = fitparamstock;
         params = params(any(params~=0,2), : );
         table = array2table(params,'VariableNames',Column_names) ;
         out = outputfile ;
         out = out(any(out~=0,2),:);
         tableout = array2table(out,'VariableNames',Out_columns);        
-        writetable(tableout,strcat(filepath,'/',filename,'/',filename,'_Data.txt'),'Delimiter','\t') ;
-        writetable(table,strcat(filepath,'/',filename,'/',filename,'_Parameters.txt'),'Delimiter','\t') ;
+        writetable(tableout,strcat(filepath,'\',filename,'\',filename,'_Curves.txt'),'Delimiter','\t') ;
+        writetable(table,strcat(filepath,'\',filename,'\',filename,'_Parameters.txt'),'Delimiter','\t') ;
         disp(['The files were saved successfully in directory ',filepath,'\',filename,'\']);
         
     elseif contains(savefile,'Yes') && only_one
@@ -888,15 +901,15 @@ if contains(plot_option,'single')
         out = out(any(out~=0,2),:);
         tableout = array2table(out,'VariableNames',Out_columns);        
         if contains(TorH,'T')
-            exportgraphics(axchipr,strcat(filepath,'/',filename,'/',filename,'_chiprime',string(rTemp),'K.png'));
-            exportgraphics(axchisec,strcat(filepath,'/',filename,'/',filename,'_chisecond',string(rTemp),'K.png'));
-            writetable(tableout,strcat(filepath,'/',filename,'/',filename,'_Data',string(rTemp),'K.txt'),'Delimiter','\t') ;
-            writetable(table,strcat(filepath,'/',filename,'/',filename,'_Parameters',string(rTemp),'K.txt'),'Delimiter','\t') ;
+            exportgraphics(axchipr,strcat(filepath,'\',filename,'\',filename,'_chiprime',string(rTemp),'K.png'));
+            exportgraphics(axchisec,strcat(filepath,'\',filename,'\',filename,'_chisecond',string(rTemp),'K.png'));
+            writetable(tableout,strcat(filepath,'\',filename,'\',filename,'_Curves',string(rTemp),'K.txt'),'Delimiter','\t') ;
+            writetable(table,strcat(filepath,'\',filename,'\',filename,'_Parameters',string(rTemp),'K.txt'),'Delimiter','\t') ;
         elseif contains(TorH,'H')
-            exportgraphics(axchipr,strcat(filepath,'/',filename,'/',filename,'_chiprime',string(rField),'Oe.png'));
-            exportgraphics(axchisec,strcat(filepath,'/',filename,'/',filename,'_chisecond',string(rField),'Oe.png'));
-            writetable(tableout,strcat(filepath,'/',filename,'/',filename,'_Data',string(rField),'Oe.txt'),'Delimiter','\t') ;
-            writetable(table,strcat(filepath,'/',filename,'/',filename,'_Parameters',string(rField),'Oe.txt'),'Delimiter','\t') ;
+            exportgraphics(axchipr,strcat(filepath,'\',filename,'\',filename,'_chiprime',string(rField),'Oe.png'));
+            exportgraphics(axchisec,strcat(filepath,'\',filename,'\',filename,'_chisecond',string(rField),'Oe.png'));
+            writetable(tableout,strcat(filepath,'\',filename,'\',filename,'_Curves',string(rField),'Oe.txt'),'Delimiter','\t') ;
+            writetable(table,strcat(filepath,'\',filename,'\',filename,'_Parameters',string(rField),'Oe.txt'),'Delimiter','\t') ;
         end
         disp(['The files were saved successfully in directory ',filepath,'\',filename,'\']);
     end
@@ -917,14 +930,14 @@ if contains(plot_option,'separated')
         out = outputfile ;
         out = out(any(out~=0,2),:);
         tableout = array2table(out,'VariableNames',Out_columns);        
-        writetable(tableout,strcat(filepath,'/',filename,'/',filename,'_Data.txt'),'Delimiter','\t') ;        
-        writetable(table,strcat(filepath,'/',filename,'/',filename,'_Parameters.txt'),'Delimiter','\t') ;
+        writetable(tableout,strcat(filepath,'\',filename,'\',filename,'_Curves.txt'),'Delimiter','\t') ;        
+        writetable(table,strcat(filepath,'\',filename,'\',filename,'_Parameters.txt'),'Delimiter','\t') ;
         FigList = findobj('Type', 'figure');
         for iFig = 1:length(FigList)
           FigHandle = FigList(iFig);
           set(FigHandle, 'units','normalized','outerposition',[0 0 1 1])
           FigName   = get(FigHandle, 'Name');
-          exportgraphics(FigHandle,strcat(filepath,'/',filename,'/',filename,'_',FigName,'.png'));       
+          exportgraphics(FigHandle,strcat(filepath,'\',filename,'\',filename,'_',FigName,'.png'));       
         end
         disp(['The files were saved successfully in directory ',filepath,'\',filename,'\']);
     end
