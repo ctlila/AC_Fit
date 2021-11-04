@@ -1,13 +1,14 @@
                 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
                 %%%%%%%%%%%%%                            %%%%%%%%%%%%%
-                %%%%%%%%%%%%%   FIT CHI' and CHI" DATA   %%%%%%%%%%%%%
+                %%%%%%%%%%%%%         FIT AC DATA        %%%%%%%%%%%%%
                 %%%%%%%%%%%%%                            %%%%%%%%%%%%%
                 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-                   %%%%Implemented by Lila CT in april 2021 %%%%
+                   %%%% Implemented by Lila CT in april 2021 %%%%
 
                                    
-                    
+%Last modifications are commented %2.5
+
 clear
 
 format longG
@@ -15,13 +16,11 @@ format longG
 state = rng ; 
 
 
-%%
-
-%%%%%%% OPTIONAL FEATURES %%%%%%
+%% OPTIONAL FEATURES
 
 w = 0.8 ; % weight of chi2 compared to chi1 in the fitting process.
 
-lambda = 0.001 ; %Lagrange parameter for Lasso regularization of parameters with norm l1
+lambda = 0.0001 ; %Lagrange parameter for Lasso regularization of parameters with norm l1
 
 %Do you want to plot each temperatures separately or all temperatures on a single figure ?
 plot_option = 'single' ; %options : 'single' / 'separated'                                 
@@ -30,9 +29,13 @@ plot_option = 'single' ; %options : 'single' / 'separated'
 only_one = false ;
 which = 11 ; %if only one, which one ? (row index)
 
+%Are there rows to ignore at the beginning of the matrix ? 
+%If yes specify the first row to be taken into account (frst=2 means the first measure is ignored).
+%If no the correct value is 1.
+frst = 1; %default value for first row (no row to ignore)
 
-%Initial parameters of the fits + typical patterns of AC curves. You may modify/add patterns 
 
+%Initial parameters of the fits + typical patterns of AC curves. You may modify/add patterns
 %Generally no change in initial parameters or patterns is needed.
 
 %order : (chiT-chiS)_1 tau_1 alpha_1 chiS  (chiT-chiS)_2 tau_2 alpha_2
@@ -50,12 +53,18 @@ pattern2 = [0.63 0.0015 0.132 0.5 0.325 0.0 0.133];
 pattern3 = [0.28 4.74e-5 0.148 0.012 0.14 0.0025 0.096];
 pattern4 = [0.226 5.93e-6 0.192 0.012 0.1 2.95e-4 0.075];
 
+%Please note that no fit is performed on chiS_2 and we just assume
+%chiS_1=chiS_2 because the only value obtained with the fit is chiS_1+chiS_2
+%so we cannot separate the two contributions. However this is physically correct
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%%%%%%%%%%
 %%% RUN %%%
 %%%%%%%%%%%
+
+%% Inputs
 
 %Instrument choice
 instr = input("ppms or squid ?",'s');
@@ -87,7 +96,6 @@ if isempty(MW)
      MW = 838.81; %enter here a default value for the molecular weight.
 end 
 
-
 mass=input('Mass of the sample in mg');
 if isempty(mass)
      mass = 10.2; %=default value for sample mass.
@@ -98,47 +106,13 @@ if isempty(mteflon)
      mteflon = 8.17; %default value for teflon mass.
 end 
 
-%Number of points for each acquisition
-nbpt=input('Number of points for each acquisition');
-if isempty(nbpt)
-     nbpt = 21; %=default value for number of points.
-end 
-
-%Are there rows to ignore at the beginning of the matrix ? 
-%If yes specify the first row to be taken into account. 
-%If no the correct value is 1.
-frst = 1; %default value for first row (no row to ignore)
-
-
-%ScanT or ScanH
-TorH=input("Is it a scan in Temperature (option T)or in Magnetic field (option H)?",'s');
-if isempty(TorH)
-     TorH = 'T';
-end 
-
-
-if contains(TorH,'T')
-    %The smallest difference of temperature between 2 acquisitions (for legends)
-    stepT=input('The smallest difference of temperature between 2 acquisitions (K)');
-    if isempty(stepT)
-         stepT = 0.1; %default value for step in T
-    end 
-    stepH=100;
-else
-    %The smallest difference of temperature between 2 acquisitions
-    stepH=input('The smallest difference of magnetic field between 2 acquisitions (Oe)');
-    if isempty(stepH)
-         stepH = 100; %default value for step in field in Oersted
-    end 
-    stepT=0.1;
-end
-
-
-
 %importing data
-Rawdata = readmatrix(rawfile); 
+Rawdata = readmatrix(rawfile);
+[nbrow,~] = size(Rawdata); %2.5
 
-%%
+disp(['--------- Data imported from ',rawfile,' ---------']) %2.5
+
+%% Definitions and preallocations
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%      MAIN      %%%%%%%%%
@@ -153,8 +127,33 @@ fitpr2 = @(x,xdata)x(4)+x(1)*(1+((2*pi*xdata*x(2)).^(1-x(3)))*sin((pi*x(3))/2)).
 fitsec1= @(x,xdata)(x(1)*((2*pi*xdata*x(2)).^(1-x(3)))*cos((pi*x(3))/2))./(1+(2*((2*pi*xdata*x(2)).^(1-x(3)))*sin(pi*(x(3)/2)))+((2*pi*xdata*x(2)).^(2-2*x(3))));
 fitsec2 = @(x,xdata)(x(1)*((2*pi*xdata*x(2)).^(1-x(3)))*cos((pi*x(3))/2))./(1+(2*((2*pi*xdata*x(2)).^(1-x(3)))*sin(pi*(x(3)/2)))+((2*pi*xdata*x(2)).^(2-2*x(3))))+(x(5)*((2*pi*xdata*x(6)).^(1-x(7)))*cos((pi*x(7))/2))./(1+(2*((2*pi*xdata*x(6)).^(1-x(7)))*sin(pi*(x(7)/2)))+((2*pi*xdata*x(6)).^(2-2*x(7))));
 
+
+
+%Calculates the number of points for each acquisition nbpt %2.5
+%Ensure all measure sets have the same 
+if contains(instr,'squid','IgnoreCase',true)
+    m=max(Rawdata(:,15));
+    nbocc=length(find(Rawdata(:,15)==m));
+    nbpt=nbrow/nbocc;
+elseif contains(instr,'ppms','IgnoreCase',true)
+    m=max(Rawdata(:,5));
+    nbocc=length(find(Rawdata(:,5)==m));
+    nbpt=nbrow/nbocc;
+end
+
+%specifications of your data file : the number of measure sets.
+nbfit = (nbrow-(frst-1))/nbpt;
+
+if ~(floor(nbfit)==nbfit)
+    disp('Wrong entry. Please ensure your .dat file is clean (no additionnal row) and all acquisitions have the same length.')
+    return 
+end
+
 %Import relevant columns
 if contains(instr,'squid','IgnoreCase',true)
+for i = 1:nbfit %Reordering the Rawdata matrix to have incresing frequencies for each measure set.  %2.5
+    Rawdata((frst+(i-1)*nbpt):(frst-1+i*nbpt),:) = sortrows(Rawdata((frst+(i-1)*nbpt):(frst-1+i*nbpt),:),15);
+end
     temperatures = Rawdata(:,4);
     amplitudes = Rawdata(:,14);
     fields = Rawdata(:,3);
@@ -162,9 +161,10 @@ if contains(instr,'squid','IgnoreCase',true)
     stddev = (Rawdata(:,6)+Rawdata(:,8))./2;
     fq = Rawdata(:,15);
     msec = Rawdata(:,7);
+elseif contains(instr,'ppms','IgnoreCase',true)
+for i = 1:nbfit %Reordering the Rawdata matrix to have incresing frequencies for each measure set.  %2.5
+    Rawdata((frst+(i-1)*nbpt):(frst-1+i*nbpt),:) = sortrows(Rawdata((frst+(i-1)*nbpt):(frst-1+i*nbpt),:),5);
 end
-
-if contains(instr,'ppms','IgnoreCase',true)
     temperatures = Rawdata(:,3);
     amplitudes = Rawdata(:,6);
     fields = Rawdata(:,4);
@@ -173,7 +173,31 @@ if contains(instr,'ppms','IgnoreCase',true)
     fq = Rawdata(:,5);
     msec = Rawdata(:,10);
 end
-    
+
+%ScanT or ScanH : Is it a scan in Temperature (option T) or in Magnetic field (option H)? %2.5
+if range(temperatures)<range(fields)/100
+    TorH='H';
+else 
+    TorH='T';
+end
+
+
+%Now I just do a little trick to calculate the variable stepH that represent the smallest difference between two consecutivefields in the data. It is only used to build the legend.
+%The only restriction is that you cannot have a difference of less than 10 Oe between two fields and less than 0.1K between two temperatures. It should not be too restrictive as it is close to the machine precision. 
+
+if TorH == 'T'   %2.5
+    stepT=0.1;
+    stepH=100;
+else 
+    for i = 1:nbfit
+    meansH(i)= mean(fields(((i-1)*nbpt+1):(i*nbpt)));
+    end
+    dH=diff(meansH);
+    mH=min(dH);
+    stepH=round(mH/10)*10;
+    stepT=0.1;
+end
+
 
 %Calculation of chi' and chi" from M' and M" respectively.
 chisec = msec./amplitudes.*(MW*10^3/mass);
@@ -183,17 +207,9 @@ chipr = ((mpr+(3.7*10^-10 .* mteflon .*amplitudes))./amplitudes).* MW.*10^3./mas
 %Get the standard deviations of each measure for weights
 std_devstock= stddev;
 
-%specifications of your data file
-nbrow = size(Rawdata);
-nbfit = (nbrow(1)-(frst-1))/nbpt;
-
-if ~(floor(nbfit)==nbfit)
-    disp('Wrong entry. Please ensure your .dat file is clean (no additionnal row) and all acquisitions have the same length.')
-    return 
-end
 
 %options for the optimization algorithm
-optionsnonlin = optimoptions('lsqnonlin','MaxFunctionEvaluations',1.2e+05,'MaxIterations',4e4,'FunctionTolerance',1e-10,'StepTolerance',1e-10,'OptimalityTolerance',1e-8,'UseParallel',false);
+optionsnonlin = optimoptions('lsqnonlin','MaxFunctionEvaluations',1.2e+05,'MaxIterations',4e4,'FunctionTolerance',1e-10,'StepTolerance',1e-10,'OptimalityTolerance',1e-8,'UseParallel',false,'Display','none'); %2.5 (just the display options)
 
 %lower bounds ans upper bounds of parameters
 lb2=[0,0,0,0,0,0,0]; 
@@ -224,6 +240,8 @@ legendtemp = cell(1,nbfit);                           %Storage for legends
 legendfield = cell(1,nbfit);
 jacobian = zeros(nbpt);                               %Storage for raw jacobians
 outputfile = zeros(nbfit*nbpt,7);                     % x and y data of each curve and each fit + T + H
+Column_names = {'d1','errd1','t1','errt1','a1','erra1','chiS1','errchiS1','d2','errd2','t2','errt2','a2','erra2','chiS2','errchiS2','T','1/T','H','ln(t1)','err(ln(t1))','ln(t2)','err(ln(t2))'} ;
+
 
 if only_one 
     end_index = which+1 ;
@@ -234,6 +252,7 @@ else
     end_index = nbfit + 1;
 end    
 
+%% Loops
 
     while i<end_index
 
@@ -251,7 +270,7 @@ end
         
         rTemp = round(Temp/stepT)*stepT; %round temperature
 
-        Fields = fields((frst+(i-1)*nbpt):(frst-1+i*nbpt)); %magnetic field   
+        Fields = fields((frst+(i-1)*nbpt):(frst-1+i*nbpt)); %magnetic field
         
         Field = mean(Fields);
         
@@ -311,6 +330,7 @@ end
                 figure('Name','Chipr','units','normalized','outerposition',[0 0.3 0.3 0.6]);
                 axchipr = gca ; 
                 figchipr = gcf ;
+
             end
             i=i+1 ;
             continue
@@ -323,7 +343,7 @@ end
            choicec = 1 ;
            choice(i,1) = 1;
 
-           obj1 = @(x) [(1-w).*((x(4)+x(1)*(1+((2*pi*xdata*x(2)).^(1-x(3)))*sin((pi*x(3))/2))./(1+(2*((2*pi*xdata*x(2)).^(1-x(3)))*sin(pi*(x(3)/2)))+((2*pi*xdata*x(2)).^(2-2*x(3)))))-ydatapr) ; w.*(((x(1)*((2*pi*xdata*x(2)).^(1-x(3)))*cos((pi*x(3))/2))./(1+(2*((2*pi*xdata*x(2)).^(1-x(3)))*sin(pi*(x(3)/2)))+((2*pi*xdata*x(2)).^(2-2*x(3)))))-ydatasec); lambda*(x(1)+x(2)+x(3)+x(4))];
+           obj1 = @(x) [(1-w).*((x(4)+x(1)*(1+((2*pi*xdata*x(2)).^(1-x(3)))*sin((pi*x(3))/2))./(1+(2*((2*pi*xdata*x(2)).^(1-x(3)))*sin(pi*(x(3)/2)))+((2*pi*xdata*x(2)).^(2-2*x(3)))))-ydatapr) ; w.*(((x(1)*((2*pi*xdata*x(2)).^(1-x(3)))*cos((pi*x(3))/2))./(1+(2*((2*pi*xdata*x(2)).^(1-x(3)))*sin(pi*(x(3)/2)))+((2*pi*xdata*x(2)).^(2-2*x(3)))))-ydatasec); lambda*sqrt((x(1)^2+x(2)^2+x(3)^2+x(4)^2))];
 
 
         elseif Cswitch == 2 %2 contributions chosen
@@ -334,7 +354,7 @@ end
            choicec = 2;
            choice(i,1) = 2;
            
-           obj2 = @(x) [(1-w).*((x(4)+x(1)*(1+((2*pi*xdata*x(2)).^(1-x(3)))*sin((pi*x(3))/2))./(1+(2*((2*pi*xdata*x(2)).^(1-x(3)))*sin(pi*(x(3)/2)))+((2*pi*xdata*x(2)).^(2-2*x(3)))) + x(4)+x(5)*(1+((2*pi*xdata*x(6)).^(1-x(7)))*sin((pi*x(7))/2))./(1+(2*((2*pi*xdata*x(6)).^(1-x(7)))*sin(pi*(x(7)/2)))+((2*pi*xdata*x(6)).^(2-2*x(7)))))-ydatapr) ; w.*(((x(1)*((2*pi*xdata*x(2)).^(1-x(3)))*cos((pi*x(3))/2))./(1+(2*((2*pi*xdata*x(2)).^(1-x(3)))*sin(pi*(x(3)/2)))+((2*pi*xdata*x(2)).^(2-2*x(3))))+(x(5)*((2*pi*xdata*x(6)).^(1-x(7)))*cos((pi*x(7))/2))./(1+(2*((2*pi*xdata*x(6)).^(1-x(7)))*sin(pi*(x(7)/2)))+((2*pi*xdata*x(6)).^(2-2*x(7)))))-ydatasec); lambda*(x(5)+x(6)+x(7)); lambda*(x(1)+x(2)+x(3)+x(4)+x(5)+x(6)+x(7))];
+           obj2 = @(x) [(1-w).*((x(4)+x(1)*(1+((2*pi*xdata*x(2)).^(1-x(3)))*sin((pi*x(3))/2))./(1+(2*((2*pi*xdata*x(2)).^(1-x(3)))*sin(pi*(x(3)/2)))+((2*pi*xdata*x(2)).^(2-2*x(3)))) + x(4)+x(5)*(1+((2*pi*xdata*x(6)).^(1-x(7)))*sin((pi*x(7))/2))./(1+(2*((2*pi*xdata*x(6)).^(1-x(7)))*sin(pi*(x(7)/2)))+((2*pi*xdata*x(6)).^(2-2*x(7)))))-ydatapr) ; w.*(((x(1)*((2*pi*xdata*x(2)).^(1-x(3)))*cos((pi*x(3))/2))./(1+(2*((2*pi*xdata*x(2)).^(1-x(3)))*sin(pi*(x(3)/2)))+((2*pi*xdata*x(2)).^(2-2*x(3))))+(x(5)*((2*pi*xdata*x(6)).^(1-x(7)))*cos((pi*x(7))/2))./(1+(2*((2*pi*xdata*x(6)).^(1-x(7)))*sin(pi*(x(7)/2)))+((2*pi*xdata*x(6)).^(2-2*x(7)))))-ydatasec); lambda*(x(5)+x(6)+x(7)); lambda*sqrt((x(1)^2+x(2)^2+x(3)^2+x(4)^2+x(5)^2+x(6)^2+x(7)^2))];
 
         end
 
@@ -351,8 +371,8 @@ end
 
                    
                     %functions to be optimized with weights
-                     wobj1 = @(x) [W.*((1-w).*((x(4)+x(1)*(1+((2*pi*xdata*x(2)).^(1-x(3)))*sin((pi*x(3))/2))./(1+(2*((2*pi*xdata*x(2)).^(1-x(3)))*sin(pi*(x(3)/2)))+((2*pi*xdata*x(2)).^(2-2*x(3)))))-ydatapr)) ; W.*(w.*(((x(1)*((2*pi*xdata*x(2)).^(1-x(3)))*cos((pi*x(3))/2))./(1+(2*((2*pi*xdata*x(2)).^(1-x(3)))*sin(pi*(x(3)/2)))+((2*pi*xdata*x(2)).^(2-2*x(3)))))-ydatasec)); lambda*(x(1)+x(2)+x(3)+x(4))];
-                     wobj2 = @(x) [W.*((1-w).*((x(4)+x(1)*(1+((2*pi*xdata*x(2)).^(1-x(3)))*sin((pi*x(3))/2))./(1+(2*((2*pi*xdata*x(2)).^(1-x(3)))*sin(pi*(x(3)/2)))+((2*pi*xdata*x(2)).^(2-2*x(3)))) + x(4)+x(5)*(1+((2*pi*xdata*x(6)).^(1-x(7)))*sin((pi*x(7))/2))./(1+(2*((2*pi*xdata*x(6)).^(1-x(7)))*sin(pi*(x(7)/2)))+((2*pi*xdata*x(6)).^(2-2*x(7)))))-ydatapr)) ; W.*(w.*(((x(1)*((2*pi*xdata*x(2)).^(1-x(3)))*cos((pi*x(3))/2))./(1+(2*((2*pi*xdata*x(2)).^(1-x(3)))*sin(pi*(x(3)/2)))+((2*pi*xdata*x(2)).^(2-2*x(3))))+(x(5)*((2*pi*xdata*x(6)).^(1-x(7)))*cos((pi*x(7))/2))./(1+(2*((2*pi*xdata*x(6)).^(1-x(7)))*sin(pi*(x(7)/2)))+((2*pi*xdata*x(6)).^(2-2*x(7)))))-ydatasec)); lambda*(x(5)+x(6)+x(7)); lambda*(x(1)+x(2)+x(3)+x(4)+x(5)+x(6)+x(7))];
+                     wobj1 = @(x) [W.*((1-w).*((x(4)+x(1)*(1+((2*pi*xdata*x(2)).^(1-x(3)))*sin((pi*x(3))/2))./(1+(2*((2*pi*xdata*x(2)).^(1-x(3)))*sin(pi*(x(3)/2)))+((2*pi*xdata*x(2)).^(2-2*x(3)))))-ydatapr)) ; W.*(w.*(((x(1)*((2*pi*xdata*x(2)).^(1-x(3)))*cos((pi*x(3))/2))./(1+(2*((2*pi*xdata*x(2)).^(1-x(3)))*sin(pi*(x(3)/2)))+((2*pi*xdata*x(2)).^(2-2*x(3)))))-ydatasec)); lambda*sqrt((x(1)^2+x(2)^2+x(3)^2+x(4)^2))];
+                     wobj2 = @(x) [W.*((1-w).*((x(4)+x(1)*(1+((2*pi*xdata*x(2)).^(1-x(3)))*sin((pi*x(3))/2))./(1+(2*((2*pi*xdata*x(2)).^(1-x(3)))*sin(pi*(x(3)/2)))+((2*pi*xdata*x(2)).^(2-2*x(3)))) + x(4)+x(5)*(1+((2*pi*xdata*x(6)).^(1-x(7)))*sin((pi*x(7))/2))./(1+(2*((2*pi*xdata*x(6)).^(1-x(7)))*sin(pi*(x(7)/2)))+((2*pi*xdata*x(6)).^(2-2*x(7)))))-ydatapr)) ; W.*(w.*(((x(1)*((2*pi*xdata*x(2)).^(1-x(3)))*cos((pi*x(3))/2))./(1+(2*((2*pi*xdata*x(2)).^(1-x(3)))*sin(pi*(x(3)/2)))+((2*pi*xdata*x(2)).^(2-2*x(3))))+(x(5)*((2*pi*xdata*x(6)).^(1-x(7)))*cos((pi*x(7))/2))./(1+(2*((2*pi*xdata*x(6)).^(1-x(7)))*sin(pi*(x(7)/2)))+((2*pi*xdata*x(6)).^(2-2*x(7)))))-ydatasec)); lambda*(x(5)+x(6)+x(7)); lambda*sqrt((x(1)^2+x(2)^2+x(3)^2+x(4)^2+x(5)^2+x(6)^2+x(7)^2))];
 
 
                     %optimization with 2 contributions from initial parameters or parameters from last loop
@@ -600,6 +620,12 @@ end
             xlabel(upplot,'Frequence (Hz)', 'Interpreter', 'latex');
             legend(upplot,'Location','Best');
 
+
+
+
+
+
+
             [Wswitch,~] = listdlg('ListString',{'Weighted', 'Not weighted'},'OKString','Enter','PromptString','Your choice ?','SelectionMode','single','ListSize',[160,50]);
             close('temp_fig')
 
@@ -661,6 +687,7 @@ end
          residualstock(n,i) = (residual(n)+residual(nbpt+n))/2 ; %residual = average of chi' and chi" residual
         end
         
+      
         
         %For errors display
 
@@ -691,19 +718,28 @@ end
          %Add three columns with temperatures and 1/T and H
 
 
-        fitparamstock(i,17)= rTemp;
+        fitparamstock(i,17)= Temp;
         fitparamstock(i,18)=1/fitparamstock(i,17);
-        fitparamstock(i,19)=rField;
+        fitparamstock(i,19)=Field;
 
+
+         %%display parameters  %2.6
+            if i==1
+
+                figparam = uifigure('Name','Parameters','units','normalized','Position',[0.001 0.01 0.6 0.3]); %2.6
+                uit = uitable(figparam,'units','normalized','Position',[0 0 1 1],'ColumnName',Column_names);
+            end
+            
+            uit.Data(i,:)=fitparamstock(i,:);
 
         %%%%PLOTS%%%%
 
 
         if (i==1 || only_one) && contains(plot_option,'single')
-            figure('Name','Chisec','units','normalized','outerposition',[0.3 0.3 0.3 0.6]);
+            figure('Name','Chisec','units','normalized','outerposition',[0.3 0.4 0.3 0.58]);
             axchisec = gca ;
             figchisec = gcf ;        
-            figure('Name','Chipr','units','normalized','outerposition',[0 0.3 0.3 0.6]);
+            figure('Name','Chipr','units','normalized','outerposition',[0 0.4 0.3 0.58]);
             axchipr = gca ; 
             figchipr = gcf ;
         end
@@ -814,7 +850,7 @@ end
         end   
 
 
-        %Fix chiS2 as ChiS1 (they were already fitted together, just copying the value
+        %Fix chiS2 as ChiS1 (they were already fitted together, just copying the value)
 
         fitparamstock(i,[15 16]) = fitparamstock(i,[7 8]);
 
@@ -837,7 +873,7 @@ end
         i=i+1;
     end
   
-%%    
+%% SAVES
     
 %Now clear the ignored sets and saving files
 
@@ -873,8 +909,11 @@ if contains(plot_option,'single')
     else
         savefile = questdlg("Do you want to save these fits ?");
     end
+
+    if contains(savefile,'No') || contains(savefile,'Cancel')
+        disp('No file was saved. To save the fits please run the last section of the code %% SAVES (ctrl+enter).') %2.5
     
-    if contains(savefile,'Yes') && ~only_one
+    elseif contains(savefile,'Yes') && ~only_one
         set(figchipr, 'units','normalized','outerposition',[0 0 1 1])
         set(figchisec,'units','normalized','outerposition',[0 0 1 1])
         status = mkdir(strcat(filepath,'\',filename)) ;
@@ -943,6 +982,5 @@ if contains(plot_option,'separated')
     end
 end
 
-%%
 
 %%%% Thank you Ilyes for your precious help %%%%
